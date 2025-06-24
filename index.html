@@ -92,7 +92,28 @@
                 statusDiv.textContent = `NFC 스캔 오류: ${error.message}`;
             }
         }
+ndef.onreading = async ({ serialNumber }) => {
+    console.log("Card detected:", serialNumber);
+    try {
+        const nfc = new NFCReader();
+        const isoDep = await nfc.connect({ technology: 'IsoDep' });
+        console.log("IsoDep connected");
 
+        const selectFileApdu = hexToBytes('00A4040007D410000003000100');
+        let response = await isoDep.transceive(selectFileApdu);
+        console.log("SELECT FILE response:", bytesToHex(response));
+
+        const balanceApdu = hexToBytes('904C000004');
+        response = await isoDep.transceive(balanceApdu);
+        console.log("Balance response:", bytesToHex(response));
+        const balanceBytes = response.slice(0, 4);
+        const balance = bytesToBalance(balanceBytes);
+        // ...
+    } catch (error) {
+        console.error("Error:", error);
+        statusDiv.textContent = `오류: ${error.message}`;
+    }
+};
         scanButton.addEventListener('click', scanCard);
     </script>
 </body>
