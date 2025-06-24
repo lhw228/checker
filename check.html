@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>교통카드 잔액 조회기</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        #status { margin: 20px; font-size: 18px; }
+        #balance { font-size: 24px; font-weight: bold; color: green; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>교통카드 잔액 조회</h1>
+    <button id="scanButton">카드 스캔</button>
+    <div id="status">카드를 스캔해주세요.</div>
+    <div id="balance"></div>
+
+    <script>
+        const scanButton = document.getElementById('scanButton');
+        const statusDiv = document.getElementById('status');
+        const balanceDiv = document.getElementById('balance');
+
+        function hexToBytes(hex) {
+            const bytes = [];
+            for (let i = 0; i < hex.length; i += 2) {
+                bytes.push(parseInt(hex.substr(i, 2), 16));
+            }
+            return bytes;
+        }
+
+        function bytesToHex(bytes) {
+            return Array.from(bytes)
+                .map(byte => byte.toString(16).padStart(2, '0'))
+                .join('');
+        }
+
+        function bytesToBalance(bytes) {
+            return (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+        }
+
+        async function scanCard() {
+            if (!('NDEFReader' in window)) {
+                statusDiv.textContent = 'Web NFC를 지원하지 않는 브라우저입니다.';
+                return;
+            }
+
+            try {
+                const ndef = new NDEFReader();
+                await ndef.scan();
+                statusDiv.textContent = '카드를 스캔 중입니다...';
+
+                ndef.onreading = async ({ serialNumber }) => {
+                    statusDiv.textContent = `카드 감지됨: ${serialNumber}`;
+                    try {
+                        const nfc = new NFCReader();
+                        const isoDep = await nfc.connect({ technology: 'IsoDep
