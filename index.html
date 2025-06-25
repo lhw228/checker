@@ -37,36 +37,20 @@
         }
 
         function bytesToBalance(bytes) {
-            if (bytes.length !== 4) return -1; // 4바이트 체크
+            if (bytes.length !== 4) return -1;
             const balance = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
-            return balance >= 0 && balance <= 1000000 ? balance : -1; // 현실적 범위 필터
+            return balance >= 0 && balance <= 1000000 ? balance : -1;
         }
 
-        // 카드별 APDU 설정
         const cardConfigs = {
-            tmoney: {
-                selectFile: hexToBytes('00A4040007D410000003000100'),
-                balance: hexToBytes('904C000004')
-            },
-            cashbee: {
-                selectFile: hexToBytes('00A4040007D410000003000100'), // 가정, 실제 AID 확인 필요
-                balance: hexToBytes('904C000004')
-            },
-            hipass: {
-                selectFile: hexToBytes('00A4040007A000000632010105'), // 하이패스 AID 예시
-                balance: hexToBytes('905C000004')
-            },
-            master: {
-                selectFile: hexToBytes('00A4040007D410000003000100'),
-                balance: hexToBytes('904C000004')
-            },
-            hanpay: {
-                selectFile: hexToBytes('00A4040007D410000003000100'), // 가정
-                balance: hexToBytes('904C000004')
-            }
+            tmoney: { selectFile: hexToBytes('00A4040007D410000003000100'), balance: hexToBytes('904C000004') },
+            cashbee: { selectFile: hexToBytes('00A4040007D410000003000100'), balance: hexToBytes('904C000004') },
+            hipass: { selectFile: hexToBytes('00A4040007A000000632010105'), balance: hexToBytes('905C000004') },
+            master: { selectFile: hexToBytes('00A4040007D410000003000100'), balance: hexToBytes('904C000004') },
+            hanpay: { selectFile: hexToBytes('00A4040007D410000003000100'), balance: hexToBytes('904C000004') }
         };
 
-        let currentCardType = 'tmoney'; // 기본값: 티머니
+        let currentCardType = 'tmoney';
 
         async function scanCard() {
             if (!('NDEFReader' in window)) {
@@ -79,15 +63,21 @@
                 await ndef.scan();
                 statusDiv.textContent = '카드를 스캔 중입니다...';
 
-                ndef.onreading = async ({ serialNumber }) => {
-                    console.log("Card detected:", serialNumber);
-                    statusDiv.textContent = `카드 감지됨: ${serialNumber}`;
+                ndef.onreading = async (event) => {
+                    console.log("Tag data:", {
+                        serialNumber: event.serialNumber,
+                        message: event.message ? event.message.records.map(r => ({
+                            recordType: r.recordType,
+                            id: bytesToHex(r.id || []),
+                            data: bytesToHex(r.data || [])
+                        })) : 'No NDEF message'
+                    });
+                    statusDiv.textContent = `카드 감지됨: ${event.serialNumber}`;
                     try {
                         const nfc = new NFCReader();
                         const isoDep = await nfc.connect({ technology: 'IsoDep' });
                         console.log("IsoDep connected");
 
-                        // 카드 유형에 따라 APDU 선택 (여기서는 기본 tmoney 사용, 향후 AID 응답으로 동적 설정 가능)
                         const config = cardConfigs[currentCardType];
                         let response = await isoDep.transceive(config.selectFile);
                         console.log("SELECT FILE response:", bytesToHex(response));
