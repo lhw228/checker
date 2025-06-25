@@ -37,8 +37,36 @@
         }
 
         function bytesToBalance(bytes) {
-            return (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+            if (bytes.length !== 4) return -1; // 4바이트 체크
+            const balance = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+            return balance >= 0 && balance <= 1000000 ? balance : -1; // 현실적 범위 필터
         }
+
+        // 카드별 APDU 설정
+        const cardConfigs = {
+            tmoney: {
+                selectFile: hexToBytes('00A4040007D410000003000100'),
+                balance: hexToBytes('904C000004')
+            },
+            cashbee: {
+                selectFile: hexToBytes('00A4040007D410000003000100'), // 가정, 실제 AID 확인 필요
+                balance: hexToBytes('904C000004')
+            },
+            hipass: {
+                selectFile: hexToBytes('00A4040007A000000632010105'), // 하이패스 AID 예시
+                balance: hexToBytes('905C000004')
+            },
+            master: {
+                selectFile: hexToBytes('00A4040007D410000003000100'),
+                balance: hexToBytes('904C000004')
+            },
+            hanpay: {
+                selectFile: hexToBytes('00A4040007D410000003000100'), // 가정
+                balance: hexToBytes('904C000004')
+            }
+        };
+
+        let currentCardType = 'tmoney'; // 기본값: 티머니
 
         async function scanCard() {
             if (!('NDEFReader' in window)) {
@@ -52,31 +80,34 @@
                 statusDiv.textContent = '카드를 스캔 중입니다...';
 
                 ndef.onreading = async ({ serialNumber }) => {
-                    console.log("Card detected:", serialNumber); // 로그 1: 카드 감지
+                    console.log("Card detected:", serialNumber);
                     statusDiv.textContent = `카드 감지됨: ${serialNumber}`;
                     try {
                         const nfc = new NFCReader();
                         const isoDep = await nfc.connect({ technology: 'IsoDep' });
-                        console.log("IsoDep connected"); // 로그 2: IsoDep 연결 성공
+                        console.log("IsoDep connected");
 
-                        const selectFileApdu = hexToBytes('00A4040007D410000003000100');
-                        let response = await isoDep.transceive(selectFileApdu);
-                        console.log("SELECT FILE response:", bytesToHex(response)); // 로그 3: SELECT FILE 응답
+                        // 카드 유형에 따라 APDU 선택 (여기서는 기본 tmoney 사용, 향후 AID 응답으로 동적 설정 가능)
+                        const config = cardConfigs[currentCardType];
+                        let response = await isoDep.transceive(config.selectFile);
+                        console.log("SELECT FILE response:", bytesToHex(response));
                         const sw = bytesToHex(response.slice(-2));
                         if (sw !== '9000') {
-                            throw new Error(`SELECT FILE 실패: SW=${sw}`);
+                            throw new Error(`SELECT FILE 실패: SW=${sw}, 카드 유형 확인 필요`);
                         }
 
-                        const balanceApdu = hexToBytes('904C000004');
-                        response = await isoDep.transceive(balanceApdu);
-                        console.log("Balance response:", bytesToHex(response)); // 로그 4: 잔액 조회 응답
+                        response = await isoDep.transceive(config.balance);
+                        console.log("Balance response (raw):", bytesToHex(response));
                         const balanceBytes = response.slice(0, 4);
                         const balance = bytesToBalance(balanceBytes);
+                        if (balance < 0) {
+                            throw new Error("잔액 데이터가 비정상적 또는 4바이트 아님");
+                        }
 
                         statusDiv.textContent = '잔액 조회 완료!';
                         balanceDiv.textContent = `잔액: ${balance}원`;
                     } catch (error) {
-                        console.error("Error:", error); // 로그 5: 오류 발생 시
+                        console.error("Error details:", error.message, error.stack);
                         statusDiv.textContent = `오류: ${error.message}`;
                     } finally {
                         await isoDep.close();
@@ -84,36 +115,15 @@
                 };
 
                 ndef.onreadingerror = () => {
-                    console.error("Reading error occurred"); // 로그 6: 읽기 오류
+                    console.error("Reading error occurred");
                     statusDiv.textContent = '카드 읽기 실패. 다시 시도하세요.';
                 };
             } catch (error) {
-                console.error("Scan error:", error); // 로그 7: 스캔 오류
+                console.error("Scan error:", error.message, error.stack);
                 statusDiv.textContent = `NFC 스캔 오류: ${error.message}`;
             }
         }
-ndef.onreading = async ({ serialNumber }) => {
-    console.log("Card detected:", serialNumber);
-    try {
-        const nfc = new NFCReader();
-        const isoDep = await nfc.connect({ technology: 'IsoDep' });
-        console.log("IsoDep connected");
 
-        const selectFileApdu = hexToBytes('00A4040007D410000003000100');
-        let response = await isoDep.transceive(selectFileApdu);
-        console.log("SELECT FILE response:", bytesToHex(response));
-
-        const balanceApdu = hexToBytes('904C000004');
-        response = await isoDep.transceive(balanceApdu);
-        console.log("Balance response:", bytesToHex(response));
-        const balanceBytes = response.slice(0, 4);
-        const balance = bytesToBalance(balanceBytes);
-        // ...
-    } catch (error) {
-        console.error("Error:", error);
-        statusDiv.textContent = `오류: ${error.message}`;
-    }
-};
         scanButton.addEventListener('click', scanCard);
     </script>
 </body>
