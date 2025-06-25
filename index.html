@@ -22,6 +22,9 @@
     <div id="balance"></div>
     <div id="timeInfo"></div>
 
+    <!-- Gist에서 APDU 데이터 로드 -->
+    <script src="https://gist.github.com/cokia/6b03e2ea58e8e6c909a3908f17924d57.js"></script>
+
     <script>
         const scanButton = document.getElementById('scanButton');
         const statusDiv = document.getElementById('status');
@@ -37,14 +40,6 @@
         updateTime();
         setInterval(updateTime, 1000);
 
-        function hexToBytes(hex) {
-            const bytes = [];
-            for (let i = 0; i < hex.length; i += 2) {
-                bytes.push(parseInt(hex.substr(i, 2), 16));
-            }
-            return bytes;
-        }
-
         function bytesToHex(bytes) {
             return Array.from(bytes)
                 .map(byte => byte.toString(16).padStart(2, '0'))
@@ -56,95 +51,6 @@
             const balance = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
             return balance >= 0 && balance <= 1000000 ? balance : -1;
         }
-
-        // APDU 명령어 정의 (제공된 데이터 기반)
-        const apduCommands = {
-            tmoney: {
-                selectFile: hexToBytes('00A4040007D410000003000100'),
-                balance: hexToBytes('904C000004'),
-                cardInfo: hexToBytes('00B2011433'),
-                balanceRecord1: hexToBytes('00B201362E'),
-                balanceRecord2: hexToBytes('00B202362E'),
-                balanceRecord3: hexToBytes('00B203362E'),
-                balanceRecord4: hexToBytes('00B204362E'),
-                balanceRecord5: hexToBytes('00B205362E'),
-                balanceRecord6: hexToBytes('00B206362E'),
-                balanceRecord7: hexToBytes('00B207362E'),
-                balanceRecord8: hexToBytes('00B208362E'),
-                balanceRecord9: hexToBytes('00B209362E'),
-                balanceRecord10: hexToBytes('00B20A362E'),
-                transRecord1: hexToBytes('00B2011C2E'),
-                transRecord2: hexToBytes('00B2021C2E'),
-                transRecord3: hexToBytes('00B2031C2E'),
-                transRecord4: hexToBytes('00B2041C2E'),
-                transRecord5: hexToBytes('00B2051C2E'),
-                transRecord6: hexToBytes('00B2061C2E'),
-                transRecord7: hexToBytes('00B2071C2E'),
-                transRecord8: hexToBytes('00B2081C2E'),
-                transRecord9: hexToBytes('00B2091C2E'),
-                transRecord10: hexToBytes('00B20A1C2E')
-            },
-            cashbee: {
-                selectFile: hexToBytes('00A4040007D410000003000100'),
-                balance: hexToBytes('904C000004'),
-                cardInfo: hexToBytes('00B2011433'),
-                balanceRecord1: hexToBytes('00B201362E'),
-                balanceRecord2: hexToBytes('00B202362E'),
-                balanceRecord3: hexToBytes('00B203362E'),
-                balanceRecord4: hexToBytes('00B204362E'),
-                balanceRecord5: hexToBytes('00B205362E'),
-                balanceRecord6: hexToBytes('00B206362E'),
-                balanceRecord7: hexToBytes('00B207362E'),
-                balanceRecord8: hexToBytes('00B208362E'),
-                balanceRecord9: hexToBytes('00B209362E'),
-                balanceRecord10: hexToBytes('00B20A362E'),
-                transRecord1: hexToBytes('00B2011C2E'),
-                transRecord2: hexToBytes('00B2021C2E'),
-                transRecord3: hexToBytes('00B2031C2E'),
-                transRecord4: hexToBytes('00B2041C2E'),
-                transRecord5: hexToBytes('00B2051C2E'),
-                transRecord6: hexToBytes('00B2061C2E'),
-                transRecord7: hexToBytes('00B2071C2E'),
-                transRecord8: hexToBytes('00B2081C2E'),
-                transRecord9: hexToBytes('00B2091C2E'),
-                transRecord10: hexToBytes('00B20A1C2E')
-            },
-            hipass: {
-                selectFile: hexToBytes('00A4040007A000000632010105'),
-                balance: hexToBytes('905C000004'),
-                cardInfo: hexToBytes('00B08800C')
-            },
-            master: {
-                selectFile: hexToBytes('00A4040007D410000003000100'),
-                balance: hexToBytes('904C000004'),
-                cardInfo: hexToBytes('00B2010C00')
-            },
-            hanpay: {
-                selectFile: hexToBytes('00A4040007D410000003000100'),
-                balance: hexToBytes('904C000004'),
-                cardInfo: hexToBytes('00A400020001'),
-                balanceRecord1: hexToBytes('00B201241A'),
-                balanceRecord2: hexToBytes('00B202241A'),
-                balanceRecord3: hexToBytes('00B203241A'),
-                balanceRecord4: hexToBytes('00B204241A'),
-                balanceRecord5: hexToBytes('00B205241A'),
-                balanceRecord6: hexToBytes('00B206241A'),
-                balanceRecord7: hexToBytes('00B207241A'),
-                balanceRecord8: hexToBytes('00B208241A'),
-                balanceRecord9: hexToBytes('00B209241A'),
-                balanceRecord10: hexToBytes('00B20A241A'),
-                transRecord1: hexToBytes('00B2011C1A'),
-                transRecord2: hexToBytes('00B2021C1A'),
-                transRecord3: hexToBytes('00B2031C1A'),
-                transRecord4: hexToBytes('00B2041C1A'),
-                transRecord5: hexToBytes('00B2051C1A'),
-                transRecord6: hexToBytes('00B2061C1A'),
-                transRecord7: hexToBytes('00B2071C1A'),
-                transRecord8: hexToBytes('00B2081C1A'),
-                transRecord9: hexToBytes('00B2091C1A'),
-                transRecord10: hexToBytes('00B20A1C1A')
-            }
-        };
 
         let currentCardType = 'tmoney';
 
@@ -174,7 +80,7 @@
                         const nfc = new NFCReader();
                         const isoDep = await nfc.connect({ technology: 'IsoDep' });
 
-                        const config = apduCommands[currentCardType];
+                        const config = window.apduData[currentCardType]; // Gist에서 가져온 데이터 사용 가정
                         let response = await isoDep.transceive(config.selectFile);
                         const sw = bytesToHex(response.slice(-2));
                         if (sw !== '9000') {
