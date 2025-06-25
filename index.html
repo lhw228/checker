@@ -7,19 +7,23 @@
     <style>
         body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
         #status { margin: 20px; font-size: 18px; }
+        #tagInfo { margin: 10px; font-size: 16px; color: #333; }
         #balance { font-size: 24px; font-weight: bold; color: green; }
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+        pre { text-align: left; margin: 10px auto; padding: 10px; background: #f5f5f5; max-width: 90%; }
     </style>
 </head>
 <body>
     <h1>교통카드 잔액 조회</h1>
     <button id="scanButton">카드 스캔</button>
     <div id="status">카드를 스캔해주세요.</div>
+    <div id="tagInfo"></div>
     <div id="balance"></div>
 
     <script>
         const scanButton = document.getElementById('scanButton');
         const statusDiv = document.getElementById('status');
+        const tagInfoDiv = document.getElementById('tagInfo');
         const balanceDiv = document.getElementById('balance');
 
         function hexToBytes(hex) {
@@ -64,30 +68,29 @@
                 statusDiv.textContent = '카드를 스캔 중입니다...';
 
                 ndef.onreading = async (event) => {
-                    console.log("Tag data:", {
+                    // NFC 태그 시점의 데이터를 화면에 표시
+                    const tagData = {
                         serialNumber: event.serialNumber,
                         message: event.message ? event.message.records.map(r => ({
                             recordType: r.recordType,
                             id: bytesToHex(r.id || []),
                             data: bytesToHex(r.data || [])
                         })) : 'No NDEF message'
-                    });
+                    };
+                    tagInfoDiv.innerHTML = `<pre>${JSON.stringify(tagData, null, 2)}</pre>`;
                     statusDiv.textContent = `카드 감지됨: ${event.serialNumber}`;
                     try {
                         const nfc = new NFCReader();
                         const isoDep = await nfc.connect({ technology: 'IsoDep' });
-                        console.log("IsoDep connected");
 
                         const config = cardConfigs[currentCardType];
                         let response = await isoDep.transceive(config.selectFile);
-                        console.log("SELECT FILE response:", bytesToHex(response));
                         const sw = bytesToHex(response.slice(-2));
                         if (sw !== '9000') {
                             throw new Error(`SELECT FILE 실패: SW=${sw}, 카드 유형 확인 필요`);
                         }
 
                         response = await isoDep.transceive(config.balance);
-                        console.log("Balance response (raw):", bytesToHex(response));
                         const balanceBytes = response.slice(0, 4);
                         const balance = bytesToBalance(balanceBytes);
                         if (balance < 0) {
@@ -97,7 +100,6 @@
                         statusDiv.textContent = '잔액 조회 완료!';
                         balanceDiv.textContent = `잔액: ${balance}원`;
                     } catch (error) {
-                        console.error("Error details:", error.message, error.stack);
                         statusDiv.textContent = `오류: ${error.message}`;
                     } finally {
                         await isoDep.close();
@@ -105,12 +107,12 @@
                 };
 
                 ndef.onreadingerror = () => {
-                    console.error("Reading error occurred");
                     statusDiv.textContent = '카드 읽기 실패. 다시 시도하세요.';
+                    tagInfoDiv.innerHTML = '<pre>읽기 오류 발생. NFC 태그 데이터를 확인하세요.</pre>';
                 };
             } catch (error) {
-                console.error("Scan error:", error.message, error.stack);
                 statusDiv.textContent = `NFC 스캔 오류: ${error.message}`;
+                tagInfoDiv.innerHTML = `<pre>스캔 오류: ${error.message}</pre>`;
             }
         }
 
