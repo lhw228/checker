@@ -29,14 +29,13 @@
         const balanceDiv = document.getElementById('balance');
         const timeInfoDiv = document.getElementById('timeInfo');
 
-        // 현재 시간 표시
         function updateTime() {
             const now = new Date();
             const timeString = now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
             timeInfoDiv.textContent = `현재 시간: ${timeString} (KST)`;
         }
-        updateTime(); // 페이지 로드 시 초기 시간 설정
-        setInterval(updateTime, 1000); // 1초마다 갱신
+        updateTime();
+        setInterval(updateTime, 1000);
 
         function hexToBytes(hex) {
             const bytes = [];
@@ -58,12 +57,93 @@
             return balance >= 0 && balance <= 1000000 ? balance : -1;
         }
 
-        const cardConfigs = {
-            tmoney: { selectFile: hexToBytes('00A4040007D410000003000100'), balance: hexToBytes('904C000004') },
-            cashbee: { selectFile: hexToBytes('00A4040007D410000003000100'), balance: hexToBytes('904C000004') },
-            hipass: { selectFile: hexToBytes('00A4040007A000000632010105'), balance: hexToBytes('905C000004') },
-            master: { selectFile: hexToBytes('00A4040007D410000003000100'), balance: hexToBytes('904C000004') },
-            hanpay: { selectFile: hexToBytes('00A4040007D410000003000100'), balance: hexToBytes('904C000004') }
+        // APDU 명령어 정의 (제공된 데이터 기반)
+        const apduCommands = {
+            tmoney: {
+                selectFile: hexToBytes('00A4040007D410000003000100'),
+                balance: hexToBytes('904C000004'),
+                cardInfo: hexToBytes('00B2011433'),
+                balanceRecord1: hexToBytes('00B201362E'),
+                balanceRecord2: hexToBytes('00B202362E'),
+                balanceRecord3: hexToBytes('00B203362E'),
+                balanceRecord4: hexToBytes('00B204362E'),
+                balanceRecord5: hexToBytes('00B205362E'),
+                balanceRecord6: hexToBytes('00B206362E'),
+                balanceRecord7: hexToBytes('00B207362E'),
+                balanceRecord8: hexToBytes('00B208362E'),
+                balanceRecord9: hexToBytes('00B209362E'),
+                balanceRecord10: hexToBytes('00B20A362E'),
+                transRecord1: hexToBytes('00B2011C2E'),
+                transRecord2: hexToBytes('00B2021C2E'),
+                transRecord3: hexToBytes('00B2031C2E'),
+                transRecord4: hexToBytes('00B2041C2E'),
+                transRecord5: hexToBytes('00B2051C2E'),
+                transRecord6: hexToBytes('00B2061C2E'),
+                transRecord7: hexToBytes('00B2071C2E'),
+                transRecord8: hexToBytes('00B2081C2E'),
+                transRecord9: hexToBytes('00B2091C2E'),
+                transRecord10: hexToBytes('00B20A1C2E')
+            },
+            cashbee: {
+                selectFile: hexToBytes('00A4040007D410000003000100'),
+                balance: hexToBytes('904C000004'),
+                cardInfo: hexToBytes('00B2011433'),
+                balanceRecord1: hexToBytes('00B201362E'),
+                balanceRecord2: hexToBytes('00B202362E'),
+                balanceRecord3: hexToBytes('00B203362E'),
+                balanceRecord4: hexToBytes('00B204362E'),
+                balanceRecord5: hexToBytes('00B205362E'),
+                balanceRecord6: hexToBytes('00B206362E'),
+                balanceRecord7: hexToBytes('00B207362E'),
+                balanceRecord8: hexToBytes('00B208362E'),
+                balanceRecord9: hexToBytes('00B209362E'),
+                balanceRecord10: hexToBytes('00B20A362E'),
+                transRecord1: hexToBytes('00B2011C2E'),
+                transRecord2: hexToBytes('00B2021C2E'),
+                transRecord3: hexToBytes('00B2031C2E'),
+                transRecord4: hexToBytes('00B2041C2E'),
+                transRecord5: hexToBytes('00B2051C2E'),
+                transRecord6: hexToBytes('00B2061C2E'),
+                transRecord7: hexToBytes('00B2071C2E'),
+                transRecord8: hexToBytes('00B2081C2E'),
+                transRecord9: hexToBytes('00B2091C2E'),
+                transRecord10: hexToBytes('00B20A1C2E')
+            },
+            hipass: {
+                selectFile: hexToBytes('00A4040007A000000632010105'),
+                balance: hexToBytes('905C000004'),
+                cardInfo: hexToBytes('00B08800C')
+            },
+            master: {
+                selectFile: hexToBytes('00A4040007D410000003000100'),
+                balance: hexToBytes('904C000004'),
+                cardInfo: hexToBytes('00B2010C00')
+            },
+            hanpay: {
+                selectFile: hexToBytes('00A4040007D410000003000100'),
+                balance: hexToBytes('904C000004'),
+                cardInfo: hexToBytes('00A400020001'),
+                balanceRecord1: hexToBytes('00B201241A'),
+                balanceRecord2: hexToBytes('00B202241A'),
+                balanceRecord3: hexToBytes('00B203241A'),
+                balanceRecord4: hexToBytes('00B204241A'),
+                balanceRecord5: hexToBytes('00B205241A'),
+                balanceRecord6: hexToBytes('00B206241A'),
+                balanceRecord7: hexToBytes('00B207241A'),
+                balanceRecord8: hexToBytes('00B208241A'),
+                balanceRecord9: hexToBytes('00B209241A'),
+                balanceRecord10: hexToBytes('00B20A241A'),
+                transRecord1: hexToBytes('00B2011C1A'),
+                transRecord2: hexToBytes('00B2021C1A'),
+                transRecord3: hexToBytes('00B2031C1A'),
+                transRecord4: hexToBytes('00B2041C1A'),
+                transRecord5: hexToBytes('00B2051C1A'),
+                transRecord6: hexToBytes('00B2061C1A'),
+                transRecord7: hexToBytes('00B2071C1A'),
+                transRecord8: hexToBytes('00B2081C1A'),
+                transRecord9: hexToBytes('00B2091C1A'),
+                transRecord10: hexToBytes('00B20A1C1A')
+            }
         };
 
         let currentCardType = 'tmoney';
@@ -94,7 +174,7 @@
                         const nfc = new NFCReader();
                         const isoDep = await nfc.connect({ technology: 'IsoDep' });
 
-                        const config = cardConfigs[currentCardType];
+                        const config = apduCommands[currentCardType];
                         let response = await isoDep.transceive(config.selectFile);
                         const sw = bytesToHex(response.slice(-2));
                         if (sw !== '9000') {
